@@ -78,6 +78,11 @@ $GLOBALS["gtm4wp_includefieldtexts"] = array(
 		"description" => __( "Check this option to include the post id.", 'duracelltomi-google-tag-manager' ),
 		"phase"       => GTM4WP_PHASE_STABLE
 	),
+	GTM4WP_OPTION_INCLUDE_POSTFORMAT => array(
+		"label"       => __( "Post Format", 'duracelltomi-google-tag-manager' ),
+		"description" => __( "Check this option to include the post format.", 'duracelltomi-google-tag-manager' ),
+		"phase"       => GTM4WP_PHASE_STABLE
+	),
 	GTM4WP_OPTION_INCLUDE_SEARCHDATA  => array(
 		"label"       => __( "Search data", 'duracelltomi-google-tag-manager' ),
 		"description" => __( "Check this option to include the search term, referring page URL and number of results on the search page.", 'duracelltomi-google-tag-manager' ),
@@ -419,6 +424,12 @@ $GLOBALS["gtm4wp_integratefieldtexts"] = array(
 	GTM4WP_OPTION_INTEGRATE_WCEECCARTASFIRSTSTEP => array(
 		"label"         => __( "Cart as 1st checkout step", 'duracelltomi-google-tag-manager' ),
 		"description"   => __( "Enable this to track the cart page as the first checkout step in enhanced ecommerce instead of the checkout page itself", 'duracelltomi-google-tag-manager' ),
+		"phase"         => GTM4WP_PHASE_BETA,
+		"plugintocheck" => "woocommerce/woocommerce.php"
+	),
+	GTM4WP_OPTION_INTEGRATE_WCCUSTOMERDATA => array(
+		"label"         => __( "Customer data in data layer", 'duracelltomi-google-tag-manager' ),
+		"description"   => __( "Enable this to add all customer data (billing and shipping data, total number of orders and order value) into the data layer (WooCommerce 3.x required)", 'duracelltomi-google-tag-manager' ),
 		"phase"         => GTM4WP_PHASE_BETA,
 		"plugintocheck" => "woocommerce/woocommerce.php"
 	),
