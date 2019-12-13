@@ -1,14 +1,13 @@
-;
 var gtm4wp_soundclound_percentage_tracking = 10;
 var gtm4wp_soundclound_percentage_tracking_marks = {};
 
 jQuery(function() {
 //	jQuery( '[id^="soundcloudplayer_"]' ).each(function() {
 	jQuery( 'iframe[src*="soundcloud.com"]' ).each(function() {
-	  var iframe  = this,
-				widget  = SC.Widget( this ),
-	  		jqframe = jQuery( iframe ),
-	  		sound   = {};
+		var iframe  = this,
+		widget  = SC.Widget( this ),
+		jqframe = jQuery( iframe ),
+		sound   = {};
 
 		widget.bind( SC.Widget.Events.READY, function() {
 			widget.getCurrentSound(function( soundData ) {
@@ -21,22 +20,22 @@ jQuery(function() {
 
 				sound = soundData;
 
-			  window[ gtm4wp_datalayer_name ].push({
-			  	'event': 'gtm4wp.mediaPlayerReady',
-			 		'mediaType': 'soundcloud',
-		  		'mediaData': {
-		  			'id':     soundData.id,
-			  		'author': soundData.user.username,
-		  			'title':  soundData.title,
-				  	'url':    soundData.permalink_url,
-			  		'duration': soundData.duration
-		  		},
-			  	'mediaCurrentTime': 0
+				window[ gtm4wp_datalayer_name ].push({
+					'event': 'gtm4wp.mediaPlayerReady',
+					'mediaType': 'soundcloud',
+					'mediaData': {
+						'id':     soundData.id,
+						'author': soundData.user.username,
+						'title':  soundData.title,
+						'url':    soundData.permalink_url,
+						'duration': soundData.duration
+					},
+					'mediaCurrentTime': 0
 				});
 			}); // end of api call getDuration
 
 			widget.bind( SC.Widget.Events.PLAY_PROGRESS, function( eventData ) {
-			  gtm4wp_onSoundCloudPercentageChange( eventData );
+				gtm4wp_onSoundCloudPercentageChange( eventData );
 			});
 
 			widget.bind( SC.Widget.Events.PLAY, function( eventData ) {
@@ -73,66 +72,66 @@ jQuery(function() {
 		});
 
 		var gtm4wp_onSoundCloudPlayerStateChange = function( eventData, playerState ) {
-		  window[ gtm4wp_datalayer_name ].push({
-		  	'event': 'gtm4wp.mediaPlayerStateChange',
-		 		'mediaType': 'soundcloud',
-	  		'mediaData': {
-	  			'id':     sound.id,
-		  		'author': sound.user.username,
-	  			'title':  sound.title,
-			  	'url':    sound.permalink_url,
-		  		'duration': sound.duration
-	  		},
-		  	'mediaCurrentTime': eventData.currentPosition,
-		  	'mediaPlayerState': playerState
-		  });
-		}
+			window[ gtm4wp_datalayer_name ].push({
+				'event': 'gtm4wp.mediaPlayerStateChange',
+				'mediaType': 'soundcloud',
+				'mediaData': {
+					'id':     sound.id,
+					'author': sound.user.username,
+					'title':  sound.title,
+					'url':    sound.permalink_url,
+					'duration': sound.duration
+				},
+				'mediaCurrentTime': eventData.currentPosition,
+				'mediaPlayerState': playerState
+			});
+		};
 
 		var gtm4wp_onSoundCloudPercentageChange = function( eventData ) {
-		  var mediaPercentage  = Math.floor( eventData.currentPosition / sound.duration * 100 );
+			var mediaPercentage  = Math.floor( eventData.currentPosition / sound.duration * 100 );
 
-		  if ( typeof gtm4wp_soundclound_percentage_tracking_marks[ sound.id ] == "undefined" ) {
-    		gtm4wp_soundclound_percentage_tracking_marks[ sound.id ] = [];
-		  }
-  
-		  for( var i=0; i<100; i+=gtm4wp_soundclound_percentage_tracking ) {
-		    if ( ( mediaPercentage > i ) && ( gtm4wp_soundclound_percentage_tracking_marks[ sound.id ].indexOf( i ) == -1 ) ) {
+			if ( typeof gtm4wp_soundclound_percentage_tracking_marks[ sound.id ] == "undefined" ) {
+				gtm4wp_soundclound_percentage_tracking_marks[ sound.id ] = [];
+			}
+
+			for( var i=0; i<100; i+=gtm4wp_soundclound_percentage_tracking ) {
+				if ( ( mediaPercentage > i ) && ( gtm4wp_soundclound_percentage_tracking_marks[ sound.id ].indexOf( i ) == -1 ) ) {
 					gtm4wp_soundclound_percentage_tracking_marks[ sound.id ].push( i );
 
-		      window[ gtm4wp_datalayer_name ].push({
-		      	'event': 'gtm4wp.mediaPlaybackPercentage',
-		     		'mediaType': 'soundcloud',
-			  		'mediaData': {
-			  			'id':     sound.id,
-				  		'author': sound.user.username,
-			  			'title':  sound.title,
-					  	'url':    sound.permalink_url,
-				  		'duration': sound.duration
-			  		},
-				  	'mediaCurrentTime': eventData.currentPosition,
-			     	'mediaPercentage': i
-		      });
-		    }
-		  }
-		}
+					window[ gtm4wp_datalayer_name ].push({
+						'event': 'gtm4wp.mediaPlaybackPercentage',
+						'mediaType': 'soundcloud',
+						'mediaData': {
+							'id':     sound.id,
+							'author': sound.user.username,
+							'title':  sound.title,
+							'url':    sound.permalink_url,
+							'duration': sound.duration
+						},
+						'mediaCurrentTime': eventData.currentPosition,
+						'mediaPercentage': i
+					});
+				}
+			}
+		};
 
 		var gtm4wp_onSoundCloudPlayerEvent = function( eventName ) {
-		  widget.getPosition(function( currentPosition ) {
-			  window[ gtm4wp_datalayer_name ].push({
-			  	'event': 'gtm4wp.mediaPlayerEvent',
-			 		'mediaType': 'soundcloud',
-	  			'mediaData': {
-	  				'id':     sound.id,
-		  			'author': sound.user.username,
-		  			'title':  sound.title,
-				  	'url':    sound.permalink_url,
-			  		'duration': soundData.duration
-	  			},
-		  		'mediaCurrentTime': currentPosition,
-			  	'mediaPlayerEvent': eventName
-			  });
+			widget.getPosition(function( currentPosition ) {
+				window[ gtm4wp_datalayer_name ].push({
+					'event': 'gtm4wp.mediaPlayerEvent',
+					'mediaType': 'soundcloud',
+					'mediaData': {
+						'id':     sound.id,
+						'author': sound.user.username,
+						'title':  sound.title,
+						'url':    sound.permalink_url,
+						'duration': soundData.duration
+					},
+					'mediaCurrentTime': currentPosition,
+					'mediaPlayerEvent': eventName
+				});
 			});
-		}
+		};
 
 	});
 });
