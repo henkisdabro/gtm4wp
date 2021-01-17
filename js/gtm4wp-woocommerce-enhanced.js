@@ -174,7 +174,7 @@ jQuery(function() {
 	});
 
 	// track add to cart events for products on product detail pages
-	jQuery( document ).on( 'click', '.single_add_to_cart_button', function() {
+	jQuery( document ).on( 'click', '.single_add_to_cart_button:not(.disabled)', function() {
 		var _product_form       = jQuery( this ).closest( 'form.cart' );
 		var _product_var_id     = jQuery( '[name=variation_id]', _product_form );
 		var _product_is_grouped = jQuery( _product_form ).hasClass( 'grouped_form' );
@@ -472,6 +472,7 @@ jQuery(function() {
 	if ( is_checkout ) {
 		window.gtm4wp_checkout_step_offset = window.gtm4wp_checkout_step_offset || 0;
 		window.gtm4wp_checkout_products    = window.gtm4wp_checkout_products || [];
+		var gtm4wp_shipping_payment_method_step_offset =  window.gtm4wp_needs_shipping_address ? 0 : -1;
 		var gtm4wp_checkout_step_fired          = []; // step 1 will be the billing section which is reported during pageload, no need to handle here
 
 		jQuery( document ).on( 'blur', 'input[name^=shipping_]:not(input[name^=shipping_method])', function() {
@@ -516,7 +517,7 @@ jQuery(function() {
 				'ecommerce': {
 					'checkout': {
 						'actionField': {
-							'step': 3 + window.gtm4wp_checkout_step_offset
+							'step': 3 + window.gtm4wp_checkout_step_offset + gtm4wp_shipping_payment_method_step_offset
 						},
 						'products': window.gtm4wp_checkout_products
 					}
@@ -542,7 +543,7 @@ jQuery(function() {
 				'ecommerce': {
 					'checkout': {
 						'actionField': {
-							'step': 4 + window.gtm4wp_checkout_step_offset
+							'step': 4 + window.gtm4wp_checkout_step_offset + gtm4wp_shipping_payment_method_step_offset
 						},
 						'products': window.gtm4wp_checkout_products
 					}
@@ -556,7 +557,13 @@ jQuery(function() {
 			if ( gtm4wp_checkout_step_fired.indexOf( 'shipping_method' ) == -1 ) {
 				// shipping methods are not visible if only one is available
 				// and if the user has already a pre-selected method, no click event will fire to report the checkout step
-				jQuery( 'input[name^=shipping_method]:checked' ).trigger( 'change' );
+				var selected_shipping_method = jQuery( 'input[name^=shipping_method]:checked' );
+				if ( selected_shipping_method.length == 0 ) {
+					selected_shipping_method = jQuery( 'input[name^=shipping_method]:first' );
+				}
+				if ( selected_shipping_method.length > 0 ) {
+					selected_shipping_method.trigger( 'change' );
+				}
 			}
 
 			if ( gtm4wp_checkout_step_fired.indexOf( 'payment_method' ) == -1 ) {
@@ -564,14 +571,17 @@ jQuery(function() {
 				jQuery( 'input[name=payment_method]:checked' ).trigger( 'change' );
 			}
 
-			var _shipping_el = jQuery( '#shipping_method input:checked' );
+			var _shipping_el = jQuery( 'input[name^=shipping_method]:checked' );
+			if ( _shipping_el.length == 0 ) {
+				_shipping_el = jQuery( 'input[name^=shipping_method]:first' );
+			}
 			if ( _shipping_el.length > 0 ) {
 				window[ gtm4wp_datalayer_name ].push({
 					'event': 'gtm4wp.checkoutOptionEEC',
 					'ecommerce': {
 						'checkout_option': {
 							'actionField': {
-								'step': 3 + window.gtm4wp_checkout_step_offset,
+								'step': 3 + window.gtm4wp_checkout_step_offset + gtm4wp_shipping_payment_method_step_offset,
 								'option': 'Shipping: ' + _shipping_el.val()
 							}
 						}
@@ -586,7 +596,7 @@ jQuery(function() {
 					'ecommerce': {
 						'checkout_option': {
 							'actionField': {
-								'step': 4 + window.gtm4wp_checkout_step_offset,
+								'step': 4 + window.gtm4wp_checkout_step_offset + gtm4wp_shipping_payment_method_step_offset,
 								'option': 'Payment: ' + _payment_el.val()
 							}
 						}

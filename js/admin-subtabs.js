@@ -46,18 +46,22 @@ var adminsubtabs = {
 		},
 		"depecratedevents": {
 			tabtext: gtm4wp.depecratedeventstabtitle,
-			numitems: 4
+			numitems: 0
 		}
 	},
 	3: {},
 	4: {
 		"blocktags": {
 			tabtext: gtm4wp.blocktagstabtitle,
-			numitems: 20
+			numitems: 74
+		},
+		"blocktriggers": {
+			tabtext: gtm4wp.blocktriggerstabtitle,
+			numitems: 9
 		},
 		"blockmacros": {
 			tabtext: gtm4wp.blockmacrostabtitle,
-			numitems: 20
+			numitems: 15
 		}
 	},
 	5: {
@@ -71,7 +75,7 @@ var adminsubtabs = {
 		},
 		"int-google-optimize": {
 			tabtext: gtm4wp.gotabtitle,
-			numitems: 3
+			numitems: 2
 		},
 		"int-amp": {
 			tabtext: gtm4wp.amptabtitle,

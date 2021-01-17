@@ -43,46 +43,6 @@ function gtm4wp_escjs_boolean( $obj ) {
 	}
 }
 
-function gtm4wp_is_assoc( $arr ) {
-	// borrowed from
-	// http://stackoverflow.com/questions/173400/php-arrays-a-good-way-to-check-if-an-array-is-associative-or-sequential
-	return array_keys( $arr ) !== range( 0, count( $arr ) - 1 );
-}
-
-/**
- * Original copyright:
- * By Grant Burton @ BURTONTECH.COM (11-30-2008): IP-Proxy-Cluster Fix
- *
- * Code improved by Thomas Geiger
- */
-function gtm4wp_ip_is_private( $ip ) {
-	$int_ip = ip2long( $ip );
-	if ( ! empty( $ip ) && $int_ip != -1 && $int_ip !== false ) {
-		$private_ips = array(
-			array( '0.0.0.0', '2.255.255.255' ),
-			array( '10.0.0.0', '10.255.255.255' ),
-			array( '127.0.0.0', '127.255.255.255' ),
-			array( '169.254.0.0', '169.254.255.255' ),
-			array( '172.16.0.0', '172.31.255.255' ),
-			array( '192.0.2.0', '192.0.2.255' ),
-			array( '192.168.0.0', '192.168.255.255' ),
-			array( '255.255.255.0', '255.255.255.255' ),
-		);
-
-		foreach ( $private_ips as $private_ip ) {
-			$min_int_ip = ip2long( $private_ip[0] );
-			$max_int_ip = ip2long( $private_ip[1] );
-			if ( ( $int_ip >= $min_int_ip ) && ( $int_ip <= $max_int_ip ) ) {
-				return true;
-			}
-		}
-
-		return false;
-	} else {
-		return true;
-	}
-}
-
 /**
  * Original copyright:
  * By Grant Burton @ BURTONTECH.COM
@@ -90,29 +50,33 @@ function gtm4wp_ip_is_private( $ip ) {
  * Code improved by Thomas Geiger
  */
 function gtm4wp_get_user_ip() {
-	if ( ! empty( $_SERVER['HTTP_CLIENT_IP'] ) && ! gtm4wp_ip_is_private( $_SERVER['HTTP_CLIENT_IP'] ) ) {
-		return $_SERVER['HTTP_CLIENT_IP'];
-	}
-
 	if ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
 		foreach ( explode( ',', $_SERVER['HTTP_X_FORWARDED_FOR'] ) as $ip ) {
-			if ( ! gtm4wp_ip_is_private( trim( $ip ) ) ) {
+			if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) !== false ) {
 				return $ip;
 			}
 		}
 	}
 
-	if ( ! empty( $_SERVER['HTTP_X_FORWARDED'] ) && ! gtm4wp_ip_is_private( $_SERVER['HTTP_X_FORWARDED'] ) ) {
-		return $_SERVER['HTTP_X_FORWARDED'];
-	} elseif ( ! empty( $_SERVER['HTTP_X_CLUSTER_CLIENT_IP'] ) && ! gtm4wp_ip_is_private( $_SERVER['HTTP_X_CLUSTER_CLIENT_IP'] ) ) {
-		return $_SERVER['HTTP_X_CLUSTER_CLIENT_IP'];
-	} elseif ( ! empty( $_SERVER['HTTP_FORWARDED_FOR'] ) && ! gtm4wp_ip_is_private( $_SERVER['HTTP_FORWARDED_FOR'] ) ) {
-		return $_SERVER['HTTP_FORWARDED_FOR'];
-	} elseif ( ! empty( $_SERVER['HTTP_FORWARDED'] ) && ! gtm4wp_ip_is_private( $_SERVER['HTTP_FORWARDED'] ) ) {
-		return $_SERVER['HTTP_FORWARDED'];
-	} else {
-		return $_SERVER['REMOTE_ADDR'];
+	$possible_ip_variables = array(
+		'HTTP_CLIENT_IP',
+		'HTTP_X_FORWARDED',
+		'HTTP_X_CLUSTER_CLIENT_IP',
+		'HTTP_FORWARDED_FOR',
+		'HTTP_FORWARDED',
+		'REMOTE_ADDR'
+	);
+
+	foreach( $possible_ip_variables as $one_ip_variable ) {
+		if (
+		  ! empty( $_SERVER[ $one_ip_variable ] )
+		  && ( filter_var( $_SERVER[ $one_ip_variable ], FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) !== false )
+		) {
+			return $_SERVER[ $one_ip_variable ];
+		}
 	}
+
+	return '';
 }
 
 if ( ! function_exists( 'getallheaders' ) ) {
@@ -129,7 +93,7 @@ if ( ! function_exists( 'getallheaders' ) ) {
 }
 
 function gtm4wp_add_basic_datalayer_data( $dataLayer ) {
-	global $wp_query, $gtm4wp_options;
+	global $wp_query, $gtm4wp_options, $gtm4wp_entity_ids;
 
 	if ( $gtm4wp_options[ GTM4WP_OPTION_DONOTTRACK ] ) {
 		if ( ! empty( $_SERVER['HTTP_DNT'] ) ) {
@@ -400,63 +364,17 @@ function gtm4wp_add_basic_datalayer_data( $dataLayer ) {
 	if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_ENABLE ] > 0 ) {
 		$_gtmrestrictlistitems = array();
 
-		// IDs from https://developers.google.com/tag-manager/devguide#security
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_ADADVISOR ] ) {
-			$_gtmrestrictlistitems[] = 'ta';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_ADROLL ] ) {
-			$_gtmrestrictlistitems[] = 'asp';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_AWCONV ] ) {
-			$_gtmrestrictlistitems[] = 'awct';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_AWREMARKET ] ) {
-			$_gtmrestrictlistitems[] = 'sp';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_BIZO ] ) {
-			$_gtmrestrictlistitems[] = 'bzi';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_CLICKTALE ] ) {
-			$_gtmrestrictlistitems[] = 'cts';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_COMSCORE ] ) {
-			$_gtmrestrictlistitems[] = 'csm';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_CUSTOMHTML ] ) {
-			$_gtmrestrictlistitems[] = 'html';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_CUSTOMIMG ] ) {
-			$_gtmrestrictlistitems[] = 'img';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_DBLCLKCOUNT ] ) {
-			$_gtmrestrictlistitems[] = 'flc';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_DBLCLKSALES ] ) {
-			$_gtmrestrictlistitems[] = 'fls';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_GACLASSIC ] ) {
-			$_gtmrestrictlistitems[] = 'ga';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_MARIN ] ) {
-			$_gtmrestrictlistitems[] = 'ms';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_MPLEXIFRAME ] ) {
-			$_gtmrestrictlistitems[] = 'mpm';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_MPLEXROI ] ) {
-			$_gtmrestrictlistitems[] = 'mpr';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_MEDIA6DEG ] ) {
-			$_gtmrestrictlistitems[] = 'm6d';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_TURNCONV ] ) {
-			$_gtmrestrictlistitems[] = 'tc';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_TURNDATA ] ) {
-			$_gtmrestrictlistitems[] = 'tdc';
-		}
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_UA ] ) {
-			$_gtmrestrictlistitems[] = 'ua';
+		// because of security reasons, we loop through each stored entity in the options and validate them
+		// to make sure nobody has entered some 'funny' item manually
+		$valid_entity_ids = array_merge(
+			array_keys( $gtm4wp_entity_ids[ 'tags' ] ),
+			array_keys( $gtm4wp_entity_ids[ 'triggers' ] ),
+			array_keys( $gtm4wp_entity_ids[ 'variables' ] )
+		);
+		foreach( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_STATUS ] as $listed_entity ) {
+			if ( in_array( $listed_entity, $valid_entity_ids ) ) {
+				$_gtmrestrictlistitems[] = $listed_entity;
+			}
 		}
 
 		$_gtmwhitelist = array();
@@ -465,50 +383,6 @@ function gtm4wp_add_basic_datalayer_data( $dataLayer ) {
 			$_gtmblacklist = array_merge( $_gtmblacklist, $_gtmrestrictlistitems );
 		} else {
 			$_gtmwhitelist = array_merge( $_gtmwhitelist, $_gtmrestrictlistitems );
-		}
-
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_MACRO_DOMELEMENT ] ) {
-			$_gtmwhitelist[] = 'd';
-		}
-
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_MACRO_CUSTOMJS ] ) {
-			$_gtmwhitelist[] = 'jsm';
-		}
-
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_MACRO_CONSTANT ] ) {
-			$_gtmwhitelist[] = 'c';
-		}
-
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_MACRO_1STCOOKIE ] ) {
-			$_gtmwhitelist[] = 'k';
-		}
-
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_MACRO_EVENTNAME ] ) {
-			$_gtmwhitelist[] = 'e';
-		}
-
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_MACRO_JSVAR ] ) {
-			$_gtmwhitelist[] = 'j';
-		}
-
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_MACRO_DLAYERVAR ] ) {
-			$_gtmwhitelist[] = 'v';
-		}
-
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_MACRO_RANDOMNUM ] ) {
-			$_gtmwhitelist[] = 'r';
-		}
-
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_MACRO_REFERRER ] ) {
-			$_gtmwhitelist[] = 'f';
-		}
-
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_MACRO_URL ] ) {
-			$_gtmwhitelist[] = 'u';
-		}
-
-		if ( $gtm4wp_options[ GTM4WP_OPTION_BLACKLIST_MACRO_AUTOEVENT ] ) {
-			$_gtmwhitelist[] = 'v';
 		}
 
 		$dataLayer['gtm.whitelist'] = $_gtmwhitelist;
@@ -679,21 +553,6 @@ function gtm4wp_the_gtm_tag() {
 function gtm4wp_enqueue_scripts() {
 	global $gtm4wp_options, $gtp4wp_plugin_url;
 
-	if ( $gtm4wp_options[ GTM4WP_OPTION_EVENTS_OUTBOUND ] ) {
-		$in_footer = apply_filters( 'gtm4wp_' . GTM4WP_OPTION_EVENTS_OUTBOUND, false );
-		wp_enqueue_script( 'gtm4wp-outbound-click-tracker', $gtp4wp_plugin_url . 'js/gtm4wp-outbound-click-tracker.js', array( 'jquery' ), GTM4WP_VERSION, $in_footer );
-	}
-
-	if ( $gtm4wp_options[ GTM4WP_OPTION_EVENTS_DOWNLOADS ] ) {
-		$in_footer = apply_filters( 'gtm4wp_' . GTM4WP_OPTION_EVENTS_DOWNLOADS, false );
-		wp_enqueue_script( 'gtm4wp-download-tracker', $gtp4wp_plugin_url . 'js/gtm4wp-download-tracker.js', array( 'jquery' ), GTM4WP_VERSION, $in_footer );
-	}
-
-	if ( $gtm4wp_options[ GTM4WP_OPTION_EVENTS_EMAILCLICKS ] ) {
-		$in_footer = apply_filters( 'gtm4wp_' . GTM4WP_OPTION_EVENTS_EMAILCLICKS, false );
-		wp_enqueue_script( 'gtm4wp-email-link-tracker', $gtp4wp_plugin_url . 'js/gtm4wp-email-link-tracker.js', array( 'jquery' ), GTM4WP_VERSION, $in_footer );
-	}
-
 	if ( $gtm4wp_options[ GTM4WP_OPTION_INTEGRATE_WPCF7 ] ) {
 		$in_footer = apply_filters( 'gtm4wp_' . GTM4WP_OPTION_INTEGRATE_WPCF7, false );
 		wp_enqueue_script( 'gtm4wp-contact-form-7-tracker', $gtp4wp_plugin_url . 'js/gtm4wp-contact-form-7-tracker.js', array( 'jquery' ), GTM4WP_VERSION, $in_footer );
@@ -702,11 +561,6 @@ function gtm4wp_enqueue_scripts() {
 	if ( $gtm4wp_options[ GTM4WP_OPTION_EVENTS_FORMMOVE ] ) {
 		$in_footer = apply_filters( 'gtm4wp_' . GTM4WP_OPTION_EVENTS_FORMMOVE, false );
 		wp_enqueue_script( 'gtm4wp-form-move-tracker', $gtp4wp_plugin_url . 'js/gtm4wp-form-move-tracker.js', array( 'jquery' ), GTM4WP_VERSION, $in_footer );
-	}
-
-	if ( $gtm4wp_options[ GTM4WP_OPTION_EVENTS_SOCIAL ] ) {
-		$in_footer = apply_filters( 'gtm4wp_' . GTM4WP_OPTION_EVENTS_SOCIAL, false );
-		wp_enqueue_script( 'gtm4wp-social-actions', $gtp4wp_plugin_url . 'js/gtm4wp-social-tracker.js', array( 'jquery' ), GTM4WP_VERSION, $in_footer );
 	}
 
 	if ( $gtm4wp_options[ GTM4WP_OPTION_EVENTS_YOUTUBE ] ) {
@@ -773,9 +627,11 @@ function gtm4wp_add_global_vars( $vars, $return = false ) {
 function gtm4wp_wp_header_top( $echo = true ) {
 	global $gtm4wp_options, $gtm4wp_datalayer_name;
 
+	$has_html5_support = current_theme_supports( 'html5' );
+
 	$_gtm_top_content = '
 <!-- Google Tag Manager for WordPress by gtm4wp.com -->
-<script data-cfasync="false" data-pagespeed-no-defer type="text/javascript">//<![CDATA[
+<script data-cfasync="false" data-pagespeed-no-defer' . ( $has_html5_support ? ' type="text/javascript"' : '' ) . '>//<![CDATA[
 	var gtm4wp_datalayer_name = "' . $gtm4wp_datalayer_name . '";
 	var ' . $gtm4wp_datalayer_name . ' = ' . $gtm4wp_datalayer_name . ' || [];';
 
@@ -809,9 +665,11 @@ function gtm4wp_wp_header_top( $echo = true ) {
 function gtm4wp_wp_header_begin( $echo = true ) {
 	global $gtm4wp_datalayer_name, $gtm4wp_datalayer_json, $gtm4wp_options, $woocommerce;
 
+	$has_html5_support = current_theme_supports( 'html5' );
+
 	$_gtm_header_content = '
 <!-- Google Tag Manager for WordPress by gtm4wp.com -->
-<script data-cfasync="false" data-pagespeed-no-defer type="text/javascript">//<![CDATA[';
+<script data-cfasync="false" data-pagespeed-no-defer' . ( $has_html5_support ? ' type="text/javascript"' : '' ) . '>//<![CDATA[';
 
 	if ( $gtm4wp_options[ GTM4WP_OPTION_GTM_CODE ] != '' ) {
 		$gtm4wp_datalayer_data = array();
@@ -827,13 +685,6 @@ function gtm4wp_wp_header_begin( $echo = true ) {
 			$_gtm_header_content                       .= json_encode( $gtm4wp_remarketing_tags );
 			$_gtm_header_content                       .= ';';
 			$gtm4wp_datalayer_data['google_tag_params'] = '-~-window.google_tag_params-~-';
-		}
-
-		if ( $gtm4wp_options[ GTM4WP_OPTION_EVENTS_DOWNLOADS ] ) {
-			$_gtm_header_content .= '
-	jQuery( function() {
-		gtm4wp_track_downloads( "' . str_replace( '"', '', $gtm4wp_options[ GTM4WP_OPTION_EVENTS_DWLEXT ] ) . '" );
-	});';
 		}
 
 		if ( version_compare( PHP_VERSION, '5.4.0' ) >= 0 ) {
@@ -1023,8 +874,15 @@ add_action( 'fl_before_builder', 'gtm4wp_wp_body_open', 0 ); // Beaver Builder T
 add_action( 'wp_body_open', 'gtm4wp_wp_body_open' );
 
 add_filter( 'rocket_excluded_inline_js_content', 'gtm4wp_rocket_excluded_inline_js_content' ); // WP Rocket
-if ( isset( $GLOBALS['gtm4wp_options'] ) && ( $GLOBALS['gtm4wp_options'][ GTM4WP_OPTION_INTEGRATE_WCTRACKCLASSICEC ] || $GLOBALS['gtm4wp_options'][ GTM4WP_OPTION_INTEGRATE_WCTRACKENHANCEDEC ] )
-	&& isset( $GLOBALS['woocommerce'] ) ) {
+if (
+	isset( $GLOBALS['gtm4wp_options'] )
+	&& (
+		$GLOBALS['gtm4wp_options'][ GTM4WP_OPTION_INTEGRATE_WCTRACKCLASSICEC ]
+		|| $GLOBALS['gtm4wp_options'][ GTM4WP_OPTION_INTEGRATE_WCTRACKENHANCEDEC ]
+	)
+	&& isset( $GLOBALS['woocommerce'] )
+	&& version_compare( WC()->version, '3.2', '>=' ) // only activate WooCommerce integration for minimum supported WooCommerce version
+) {
 	require_once dirname( __FILE__ ) . '/../integration/woocommerce.php';
 }
 

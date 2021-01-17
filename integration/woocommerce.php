@@ -6,23 +6,11 @@ define( 'GTM4WP_WPFILTER_EEC_ORDER_ITEM', 'gtm4wp_eec_order_item' );
 $gtm4wp_product_counter   = 0;
 $gtm4wp_last_widget_title = 'Sidebar Products';
 if ( function_exists( 'WC' ) ) {
-	$GLOBALS['gtm4wp_is_woocommerce3']   = version_compare( WC()->version, '3.0', '>=' );
 	$GLOBALS['gtm4wp_is_woocommerce3_7'] = version_compare( WC()->version, '3.7', '>=' );
 } else {
-	$GLOBALS['gtm4wp_is_woocommerce3']   = false;
 	$GLOBALS['gtm4wp_is_woocommerce3_7'] = false;
 }
 $GLOBALS['gtm4wp_grouped_product_ix'] = 1;
-
-function gtm4wp_woocommerce_addjs( $js ) {
-	$woo = WC();
-
-	if ( version_compare( $woo->version, '2.1', '>=' ) ) {
-		wc_enqueue_js( $js );
-	} else {
-		$woo->add_inline_js( $js );
-	}
-}
 
 // from https://snippets.webaware.com.au/ramblings/php-really-doesnt-unicode/
 function gtm4wp_untexturize( $fancy ) {
@@ -114,7 +102,7 @@ function gtm4wp_woocommerce_getproductterm( $product_id, $taxonomy ) {
 }
 
 function gtm4wp_process_product( $product, $additional_product_attributes, $attributes_used_for ) {
-	global $gtm4wp_options, $gtm4wp_is_woocommerce3;
+	global $gtm4wp_options;
 
 	if ( ! $product ) {
 		return false;
@@ -130,7 +118,7 @@ function gtm4wp_process_product( $product, $additional_product_attributes, $attr
 	$product_sku    = $product->get_sku();
 
 	if ( 'variation' == $product_type ) {
-		$parent_product_id = ( $gtm4wp_is_woocommerce3 ? $product->get_parent_id() : $product->id );
+		$parent_product_id = $product->get_parent_id();
 		$product_cat       = gtm4wp_get_product_category( $parent_product_id, $gtm4wp_options[ GTM4WP_OPTION_INTEGRATE_WCUSEFULLCATEGORYPATH ] );
 	} else {
 		$product_cat       = gtm4wp_get_product_category( $product_id, $gtm4wp_options[ GTM4WP_OPTION_INTEGRATE_WCUSEFULLCATEGORYPATH ] );
@@ -169,7 +157,7 @@ function gtm4wp_process_product( $product, $additional_product_attributes, $attr
 }
 
 function gtm4wp_process_order_items( $order ) {
-	global $gtm4wp_options, $gtm4wp_is_woocommerce3;
+	global $gtm4wp_options;
 
 	$return_data = array(
 		'products' => [],
@@ -189,8 +177,9 @@ function gtm4wp_process_order_items( $order ) {
 				continue;
 			}
 
-			$product = ( $gtm4wp_is_woocommerce3 ? $item->get_product() : $order->get_product_from_item( $item ) );
-			$product_price = (float) $order->get_item_total( $item );
+			$product = $item->get_product();
+			$inc_tax = ( 'incl' === get_option( 'woocommerce_tax_display_shop' ) );
+			$product_price = (float) $order->get_item_total( $item, $inc_tax );
 			$eec_product_array = gtm4wp_process_product( $product, array(
 				'quantity' => $item->get_quantity(),
 				'price'    => $product_price
@@ -210,6 +199,12 @@ function gtm4wp_process_order_items( $order ) {
 function gtm4wp_woocommerce_addglobalvars( $return = '' ) {
 	global $gtm4wp_options;
 
+	if ( function_exists( 'WC' ) && WC()->cart ) {
+		$gtm4wp_needs_shipping_address = (bool) WC()->cart->needs_shipping_address();
+	} else {
+		$gtm4wp_needs_shipping_address = false;
+	}
+
 	$return .= '
 	var gtm4wp_use_sku_instead        = ' . (int) ( $gtm4wp_options[ GTM4WP_OPTION_INTEGRATE_WCUSESKU ] ) . ";
 	var gtm4wp_id_prefix              = '" . esc_js( gtm4wp_prefix_productid( '' ) ) . "';
@@ -217,17 +212,18 @@ function gtm4wp_woocommerce_addglobalvars( $return = '' ) {
 	var gtm4wp_eec                    = ' . gtm4wp_escjs_boolean( (bool) ( $gtm4wp_options[ GTM4WP_OPTION_INTEGRATE_WCTRACKENHANCEDEC ] ) ) . ';
 	var gtm4wp_classicec              = ' . gtm4wp_escjs_boolean( (bool) ( $gtm4wp_options[ GTM4WP_OPTION_INTEGRATE_WCTRACKCLASSICEC ] ) ) . ";
 	var gtm4wp_currency               = '" . esc_js( get_woocommerce_currency() ) . "';
-	var gtm4wp_product_per_impression = " . (int) ( $gtm4wp_options[ GTM4WP_OPTION_INTEGRATE_WCPRODPERIMPRESSION ] ) . ';';
+	var gtm4wp_product_per_impression = " . (int) ( $gtm4wp_options[ GTM4WP_OPTION_INTEGRATE_WCPRODPERIMPRESSION ] ) . ';
+	var gtm4wp_needs_shipping_address = ' . gtm4wp_escjs_boolean( $gtm4wp_needs_shipping_address ) . ';';
 
 	return $return;
 }
 
 function gtm4wp_woocommerce_datalayer_filter_items( $dataLayer ) {
-	global $gtm4wp_options, $wp_query, $gtm4wp_datalayer_name, $gtm4wp_product_counter, $gtm4wp_is_woocommerce3, $gtm4wp_is_woocommerce3_7;
+	global $gtm4wp_options, $wp_query, $gtm4wp_datalayer_name, $gtm4wp_product_counter, $gtm4wp_is_woocommerce3_7;
 
 	$woo = WC();
 
-	if ( $gtm4wp_options[ GTM4WP_OPTION_INTEGRATE_WCCUSTOMERDATA ] && $gtm4wp_is_woocommerce3 ) {
+	if ( $gtm4wp_options[ GTM4WP_OPTION_INTEGRATE_WCCUSTOMERDATA ] ) {
 		if ( $woo->customer instanceof WC_Customer ) {
 			// we need to use this instead of $woo->customer as this will load proper total order number and value from the database instead of the session
 			$woo_customer = new WC_Customer( $woo->customer->get_id() );
@@ -274,7 +270,10 @@ function gtm4wp_woocommerce_datalayer_filter_items( $dataLayer ) {
 
 		foreach( $current_cart->get_cart() as $cart_item_id => $cart_item_data) {
 			$product = apply_filters( 'woocommerce_cart_item_product', $cart_item_data["data"], $cart_item_data, $cart_item_id );
-			if ( !apply_filters( GTM4WP_WPFILTER_EEC_CART_ITEM, true, $cart_item_data ) ) {
+			if (
+				!apply_filters( GTM4WP_WPFILTER_EEC_CART_ITEM, true, $cart_item_data )
+				|| !apply_filters( 'woocommerce_widget_cart_item_visible', true, $cart_item_data, $cart_item_id )
+				) {
 				continue;
 			}
 
@@ -410,11 +409,7 @@ function gtm4wp_woocommerce_datalayer_filter_items( $dataLayer ) {
 			$order = wc_get_order( $order_id );
 
 			if ( $order instanceof WC_Order ) {
-				if ( $gtm4wp_is_woocommerce3 ) {
-					$this_order_key = $order->get_order_key();
-				} else {
-					$this_order_key = $order->order_key;
-				}
+				$this_order_key = $order->get_order_key();
 
 				if ( $this_order_key != $order_key ) {
 					unset( $order );
@@ -424,7 +419,7 @@ function gtm4wp_woocommerce_datalayer_filter_items( $dataLayer ) {
 			}
 		}
 
-		if ( $gtm4wp_options[ GTM4WP_OPTION_INTEGRATE_WCORDERDATA ] && $gtm4wp_is_woocommerce3 ) {
+		if ( isset($order) && $gtm4wp_options[ GTM4WP_OPTION_INTEGRATE_WCORDERDATA ] ) {
 			$order_items = gtm4wp_process_order_items( $order );
 
 			$dataLayer['orderData'] = array(
@@ -505,11 +500,7 @@ function gtm4wp_woocommerce_datalayer_filter_items( $dataLayer ) {
 				$order_revenue = (float) $order->get_total();
 			}
 
-			if ( $gtm4wp_is_woocommerce3 ) {
-				$order_shipping_cost = (float) $order->get_shipping_total();
-			} else {
-				$order_shipping_cost = (float) $order->get_total_shipping();
-			}
+			$order_shipping_cost = (float) $order->get_shipping_total();
 
 			if ( $gtm4wp_options[ GTM4WP_OPTION_INTEGRATE_WCEXCLUDESHIPPING ] ) {
 				$order_revenue -= $order_shipping_cost;
@@ -535,7 +526,7 @@ function gtm4wp_woocommerce_datalayer_filter_items( $dataLayer ) {
 							'affiliation' => '',
 							'revenue'     => $order_revenue,
 							'tax'         => (float) $order->get_total_tax(),
-							'shipping'    => (float)( $gtm4wp_is_woocommerce3 ? $order->get_shipping_total() : $order->get_total_shipping() ),
+							'shipping'    => (float)( $order->get_shipping_total() ),
 							'coupon'      => implode( ', ', ( $gtm4wp_is_woocommerce3_7 ? $order->get_coupon_codes() : $order->get_used_coupons() ) ),
 						),
 					),
@@ -604,7 +595,7 @@ function gtm4wp_woocommerce_datalayer_filter_items( $dataLayer ) {
 					),
 				);
 
-				gtm4wp_woocommerce_addjs('
+				wc_enqueue_js('
 					window.gtm4wp_checkout_products    = ' . json_encode( $gtm4wp_checkout_products ) . ';
 					window.gtm4wp_checkout_step_offset = ' . (int) $gtm4wp_options[ GTM4WP_OPTION_INTEGRATE_WCEECCARTASFIRSTSTEP ] . ';'
 				);
@@ -635,7 +626,7 @@ function gtm4wp_woocommerce_datalayer_filter_items( $dataLayer ) {
 			);
 		}
 
-		gtm4wp_woocommerce_addjs( "document.cookie = 'gtm4wp_product_readded_to_cart=; expires=Thu, 01 Jan 1970 00:00:01 GMT;';" );
+		wc_enqueue_js( "document.cookie = 'gtm4wp_product_readded_to_cart=; expires=Thu, 01 Jan 1970 00:00:01 GMT;';" );
 		unset( $_COOKIE['gtm4wp_product_readded_to_cart'] );
 	}
 
@@ -659,7 +650,7 @@ function gtm4wp_woocommerce_single_add_to_cart_tracking() {
 
 $GLOBALS['gtm4wp_cart_item_proddata'] = '';
 function gtm4wp_woocommerce_cart_item_product_filter( $product, $cart_item = '', $cart_id = '' ) {
-	global $gtm4wp_options, $gtm4wp_is_woocommerce3;
+	global $gtm4wp_options;
 
 	$eec_product_array = gtm4wp_process_product( $product, array(
 		'productlink' => apply_filters( 'the_permalink', get_permalink(), 0 )
